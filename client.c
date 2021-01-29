@@ -26,7 +26,7 @@ int sockfd, portno, n;
 struct sockaddr_in serv_addr;
 struct hostent *server;
 char buffer[256];
-portno = 3007;
+portno = 3000;
 
 //create global structure
 patient patients[MAX_PATIENTS];
@@ -37,7 +37,7 @@ int display_commands()
         {"1:ADD_PATIENT", "2:ADD_PATIENT_LIST_",
          "3:CHECK_STATUS", "4:ADD_PATIENT_FILE.TXT", "5:SEARCH_CRITERIA"};
     int next_command;
-    puts("============Lists of Commands=========\t");
+    puts("\n============Lists of Commands=========\n\t");
     for (next_command = 0; next_command < 5; next_command++)
     {
         puts(commands[next_command]);
@@ -53,15 +53,21 @@ void add_patient()
     //struct
     //set up some condition to stop
 
-    printf("OfficerName:");
+    puts("OfficerName");
     scanf("%s", officer_name);
     char stop;
     int loop;
+    char firstName[20];
+    char secondName[20];
     puts("\t\n=========ENTER_PATIENT_DETAILS===========\n");
     for (loop = patients_number; loop <= MAX_PATIENTS; loop++)
     {
         puts("PatientName");
-        scanf("%s", patients[loop].patient_name);
+        //scanf("%s", patients[loop].patient_name);
+        scanf("%s%s", firstName , secondName);
+        strcpy(patients[loop].patient_name, firstName);
+        strcat(patients[loop].patient_name, "  ");
+        strcat(patients[loop].patient_name, secondName);
         puts("PatientGender");
         scanf("%s", patients[loop].patient_gender);
         puts("Date:forexample 01/25/2021 or 01-25-2021");
@@ -70,7 +76,7 @@ void add_patient()
         scanf("%s", patients[loop].status);
         patients_number += 1;
         puts("More patients y/n?");
-        scanf(" %c", &stop);
+        scanf(" %c", &stop,1);
         if (stop == 'n' || stop == 'N')
         {
             break;
@@ -100,7 +106,9 @@ void add_patient_list()
             int i;
             for (i = 0; i < patients_number; i++)
             {
-                fprintf(patient_file, "%s\t\t%s\t%s\t%s\n", patients[i].patient_name, patients[i].DOI, patients[i].patient_gender, officer_name);
+                fprintf(patient_file, "%-20s\t\t%-15s\t%-2s\t%-5s\n",
+                 patients[i].patient_name, 
+                patients[i].DOI, patients[i].patient_gender, officer_name);
             }
             printf("\n====== All Patients Added=====\n");
             printf("\n");
@@ -141,9 +149,14 @@ void search_details()
 
     int records = 0;
     int total_records = 0;
-    puts("\n===================================================================");
-    puts("PatientName\t\tDate\t\tGender\t\tOfficerName");
-    puts("=====================================================================");
+    char PatientName[20] = "PatientName";
+    char Date[20] = "Date";
+    char  Gender[20] = "Gender";
+
+    char OfficerName[20] = "OfficerName";
+    printf("\n");
+    printf("%-20s\t\t%-15s\t%-2s\t%-5s\n", PatientName, Date, Gender,OfficerName);
+    printf("\n");
     while (fgets(store, 100, patient_file) != NULL)
     {
         total_records++;
@@ -173,67 +186,95 @@ void search_details()
 }
 void send_patient_file()
 {
-    patient_file = fopen("patient_file.text", "r");
+    int totalLines = 0;
+    patient_file = fopen("patient_file.txt", "r");
+
     if (patient_file == NULL)
     {
-        printf("\nFile does not exist");
+        printf("\n=====File does not exist=====");
+        get_command(display_commands());
     }
-    // create socket and get file descriptor
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-    server = gethostbyname("127.0.0.1");
-
-    if (server == NULL)
+    char store[255];
+    if (fgets(store, 100, patient_file) != NULL)
     {
-        fprintf(stderr, "ERROR, no such host\n");
-        exit(0);
-    }
-
-    bzero((char *)&serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
-    serv_addr.sin_port = htons(portno);
-    //connect to server with server address which is set above (serv_addr)
-
-    if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-    {
-        perror("ERROR while connecting");
-        exit(1);
-    }
-
-    //implement connections
-    while (1)
-    {
-        printf("What do you want to say? ");
-        //making sure variable buffer is initiallized to zero.
-        bzero(buffer, 256);
-
-        //Input that goes to the server is obtained and stored in buffer.
-        //scanf("%s", buffer);
-        fgets(buffer, 255, patient_file);
-        //gets(buffer);
-        n = write(sockfd, buffer, strlen(buffer));
-
-        if (n < 0)
+        // create socket and get file descriptor
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        server = gethostbyname("127.0.0.1");
+        if (server == NULL)
         {
-            perror("ERROR while writing to socket");
-            exit(1);
+            fprintf(stderr, "ERROR, no such host\n");
+            exit(0);
+            get_command(display_commands());
         }
 
-        bzero(buffer, 256);
-        n = read(sockfd, buffer, 255);
+        bzero((char *)&serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+        serv_addr.sin_port = htons(portno);
+        //connect to server with server address which is set above (serv_addr)
 
-        if (n < 0)
+        if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
         {
-            perror("ERROR while reading from socket");
-            exit(1);
+            perror("ERROR while connecting");
+            //exit(1);
+            get_command(display_commands());
         }
-        printf("server replied: %s \n", buffer);
+    FILE *file2 = fopen("patient_file.txt","r+");
+    // if(strlen(buffer) > 2){
+    //             write(sockfd,buffer , strlen(buffer));
+    //             bzero(buffer, 256);
+    //         }
+    
+        //implement connections
+        while (1)
+        {
+              
+            //printf("What do you want to say? ");
+            //making sure variable buffer is initiallized to zero.
+            bzero(buffer, 256);
 
-        // escape this loop, if the server sends message "quit"
+            //Input that goes to the server is obtained and stored in buffer.
+            //scanf("%s", buffer);
+            
+            if(fgets(buffer, 255, file2)==NULL){
+                fclose(file2);
+                remove("patient_file.txt");
+                fopen("patient_file.txt", "a+");
+                close(sockfd);
+                break;
+            }
+            
+            //gets(buffer);
+            n = write(sockfd, buffer, strlen(buffer));
+            //printf("n:%d", n);
+            if (n < 0)
+            {
+                perror("\n\t======ERROR while writing to socket Try Again======\n\t");
+                printf("\n\t=======Try Again or Enter another command========\t\n");
+                get_command(display_commands());
+            }
 
-        if (!bcmp(buffer, "quit", 4))
-            break;
+            bzero(buffer, 256);
+            n = read(sockfd, buffer, 255);
+
+            if (n < 0)
+            {
+                perror("ERROR while reading from socket");
+                exit(1);
+                printf("\n\t=======File couldnot be read=======\t\n");
+                get_command(display_commands());
+            }
+            printf("\n=====server replied: %s =======\n", buffer);
+            
+
+            if (!bcmp(buffer, "quit", 4))
+                break;
+        }
+    }
+    else
+    {
+        printf("\n\t\t=======Patient File is empty=======\t\t\n");
+        get_command(display_commands());
     }
 }
 //patients functions
@@ -282,76 +323,17 @@ int get_command(int selected_command)
 }
 int main(int argc, char *argv[])
 {
+    puts("\n\t\t\t=====-COVID 19 MANAGEMENT SOCKET SYSTEM=====\t\t\t\n");
     //fopen("patient_file.txt", "a+");
     printf("Enter district name forexamle Kampala: ");
-
-    scanf("%s", district_name);
+    //gets(district_name);
+    scanf("%s",district_name);
+    strcpy(buffer,district_name);
     while (1)
     {
         get_command(display_commands());
         continue;
     }
 
-    char username[100], password[100];
-    // //Prompt user to enter district
-    // puts("   Welcome to our covid system   ");
-    // puts("  Please enter username ");
-    // gets(username);
-    // puts("Enter password now!");
-    // gets(password);
-
-    // create socket and get file descriptor
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-    server = gethostbyname("127.0.0.1");
-
-    // if (server == NULL) {
-    //     fprintf(stderr,"ERROR, no such host\n");
-    //     exit(0);
-    // }
-
-    // bzero((char *) &serv_addr, sizeof(serv_addr));
-    // serv_addr.sin_family = AF_INET;
-    // bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
-    // serv_addr.sin_port = htons(portno);
-
-    // connect to server with server address which is set above (serv_addr)
-
-    // if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-    //     perror("ERROR while connecting");
-    //     exit(1);
-    // }
-    // FILE *fileHd = fopen("patients.txt","r");
-    // // inside this while loop, implement communicating with read/write or send/recv function
-    // while (1) {
-    //     printf("What do you want to say? ");
-    //     //making sure variable buffer is initiallized to zero.
-    //     bzero(buffer,256);
-
-    //     //Input that goes to the server is obtained and stored in buffer.
-    //     //scanf("%s", buffer);
-    //     fgets(buffer,255,fileHd);
-    // 	//gets(buffer);
-    //     n = write(sockfd,buffer,strlen(buffer));
-
-    //     if (n < 0){
-    //         perror("ERROR while writing to socket");
-    //         exit(1);
-    //     }
-
-    //     bzero(buffer,256);
-    //     n = read(sockfd, buffer, 255);
-
-    //     if (n < 0){
-    //         perror("ERROR while reading from socket");
-    //         exit(1);
-    //     }
-    //     printf("server replied: %s \n", buffer);
-
-    //     // escape this loop, if the server sends message "quit"
-
-    //     if (!bcmp(buffer, "quit", 4))
-    //         break;
-    // }
     return 0;
 }
